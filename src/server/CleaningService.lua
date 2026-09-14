@@ -61,6 +61,11 @@ local function onScrub(player: Player, uid: unknown)
 	end
 end
 
+-- Pozwala WorldService wywolac czyszczenie po stronie serwera.
+function CleaningService.scrub(player: Player, uid: string)
+	onScrub(player, uid)
+end
+
 function CleaningService.start(profileService)
 	ProfileService = profileService
 	Remotes.event("ScrubItem").OnServerEvent:Connect(onScrub)

@@ -119,6 +119,19 @@ local function onPlaceBid(player: Player, lotId: unknown, amount: unknown)
 	})
 end
 
+-- Pozwala innym serwisom (np. WorldService) licytowac bez remote'a.
+function AuctionService.bid(player: Player, lotId: string, amount: number)
+	onPlaceBid(player, lotId, amount)
+end
+
+-- Zwraca aktualnie trwajaca aukcje albo nil.
+function AuctionService.getActiveLot()
+	for _, lot in activeLots do
+		return lot
+	end
+	return nil
+end
+
 function AuctionService.start(profileService)
 	ProfileService = profileService
 	Remotes.event("PlaceBid").OnServerEvent:Connect(onPlaceBid)
