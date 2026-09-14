@@ -1,0 +1,11 @@
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+build/
+.DS_Store
+Thumbs.db
+rojo.exe
+Packages/
+ServerPackages/
+DevPackages/
