@@ -58,4 +58,4 @@ game:BindToClose(function()
 	end
 end)
 
-print("[CursedStorage] Serwer uruchomiony.")
+print("[CursedStorage] Serwer uruchomiony. TEST SYNC 16:08 - jesli to widzisz, wtyczka dziala.")
