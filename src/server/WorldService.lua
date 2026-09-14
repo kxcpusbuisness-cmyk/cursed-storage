@@ -43,7 +43,8 @@ local function billboard(parent: BasePart, text: string, offsetY: number, name: 
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.new(0, 280, 0, 56)
 	gui.StudsOffsetWorldSpace = Vector3.new(0, offsetY, 0)
-	gui.AlwaysOnTop = true
+	gui.AlwaysOnTop = false
+	gui.MaxDistance = 90
 	gui.Parent = parent
 
 	local textLabel = Instance.new("TextLabel")
@@ -60,16 +61,32 @@ local function billboard(parent: BasePart, text: string, offsetY: number, name: 
 	return textLabel
 end
 
-local function makePrompt(parent: BasePart, name: string, action: string, object: string, key: Enum.KeyCode): ProximityPrompt
+-- Kazdy prompt siedzi na wlasnym Attachment, zeby przyciski nie nakladaly sie
+-- na siebie w jednym punkcie. Exclusivity OnePerButton pozwala pokazac dwa
+-- osobne przyciski obok siebie zamiast jednego na raz.
+local function makePrompt(
+	parent: BasePart,
+	name: string,
+	action: string,
+	object: string,
+	key: Enum.KeyCode,
+	offset: Vector3?
+): ProximityPrompt
+	local anchor = Instance.new("Attachment")
+	anchor.Name = name .. "Anchor"
+	anchor.Position = offset or Vector3.new(0, 0, 0)
+	anchor.Parent = parent
+
 	local p = Instance.new("ProximityPrompt")
 	p.Name = name
 	p.ActionText = action
 	p.ObjectText = object
 	p.HoldDuration = 0
-	p.MaxActivationDistance = 14
+	p.MaxActivationDistance = 9
 	p.RequiresLineOfSight = false
+	p.Exclusivity = Enum.ProximityPromptExclusivity.OnePerButton
 	p.KeyboardKeyCode = key
-	p.Parent = parent
+	p.Parent = anchor
 	return p
 end
 
@@ -120,7 +137,7 @@ local function buildAuction()
 		lockerInfo.TextColor3 = Color3.fromRGB(255, 210, 120)
 	end
 
-	local bidPrompt = makePrompt(door, "BidPrompt", "Podbij oferte", "Locker", Enum.KeyCode.E)
+	local bidPrompt = makePrompt(door, "BidPrompt", "Podbij oferte", "Locker", Enum.KeyCode.E, Vector3.new(0, 0, 2))
 	bidPrompt.Triggered:Connect(function(player)
 		WorldService.onBid(player)
 	end)
@@ -142,7 +159,7 @@ local function buildCleaning()
 		benchInfo.TextColor3 = Color3.fromRGB(150, 230, 240)
 	end
 
-	local scrubPrompt = makePrompt(bench, "ScrubPrompt", "Czysc przedmiot", "Stol", Enum.KeyCode.E)
+	local scrubPrompt = makePrompt(bench, "ScrubPrompt", "Czysc przedmiot", "Stol", Enum.KeyCode.E, Vector3.new(0, 2, 5))
 	scrubPrompt.Triggered:Connect(function(player)
 		WorldService.onScrub(player)
 	end)
@@ -164,12 +181,12 @@ local function buildShop()
 		shopInfo.TextColor3 = Color3.fromRGB(220, 180, 255)
 	end
 
-	local sellPrompt = makePrompt(counter, "SellPrompt", "Sprzedaj wszystko", "Kasa", Enum.KeyCode.E)
+	local sellPrompt = makePrompt(counter, "SellPrompt", "Sprzedaj wszystko", "Kasa", Enum.KeyCode.E, Vector3.new(-5, 2, 5))
 	sellPrompt.Triggered:Connect(function(player)
 		WorldService.onSellAll(player)
 	end)
 
-	local displayPrompt = makePrompt(counter, "DisplayPrompt", "Wystaw na polke", "Ekspozycja", Enum.KeyCode.F)
+	local displayPrompt = makePrompt(counter, "DisplayPrompt", "Wystaw na polke", "Ekspozycja", Enum.KeyCode.F, Vector3.new(5, 2, 5))
 	displayPrompt.Triggered:Connect(function(player)
 		WorldService.onDisplay(player)
 	end)
