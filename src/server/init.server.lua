@@ -3,6 +3,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -17,11 +18,12 @@ local ShopService = require(Server:WaitForChild("ShopService"))
 local HeistService = require(Server:WaitForChild("HeistService"))
 local WorldService = require(Server:WaitForChild("WorldService"))
 
-local function onPlayerAdded(player: Player)
-	local profile = ProfileService.load(player)
-	Remotes.event("BalanceChanged"):FireClient(player, profile.Balance)
-	Remotes.event("PhaseChanged"):FireClient(player, HeistService.getPhase())
-end
+ProfileService.start()
+AuctionService.start(ProfileService)
+CleaningService.start(ProfileService)
+ShopService.start(ProfileService)
+HeistService.start(ProfileService)
+WorldService.start(ProfileService, AuctionService, CleaningService)
 
 Remotes.func("GetProfile").OnServerInvoke = function(player: Player)
 	local profile = ProfileService.get(player)
@@ -36,15 +38,22 @@ Remotes.func("GetProfile").OnServerInvoke = function(player: Player)
 	}
 end
 
-ProfileService.start()
-AuctionService.start(ProfileService)
-CleaningService.start(ProfileService)
-ShopService.start(ProfileService)
-HeistService.start(ProfileService)
-WorldService.start(ProfileService, AuctionService, CleaningService)
+-- Komendy sa tylko dla wlasciciela gry (i w Studio), nie dla graczy.
+local function isAdmin(player: Player): boolean
+	if RunService:IsStudio() then
+		return true
+	end
+	if game.CreatorType == Enum.CreatorType.User then
+		return player.UserId == game.CreatorId
+	end
+	return false
+end
 
--- Komendy testowe na czacie. Dzialaja tylko w Studio, zeby nie wyciekly do gry.
 local function handleCommand(player: Player, message: string)
+	if not isAdmin(player) then
+		return
+	end
+
 	local parts = string.split(string.lower(message), " ")
 	local command = parts[1]
 
@@ -53,39 +62,54 @@ local function handleCommand(player: Player, message: string)
 		if tier then
 			Remotes.event("Notify"):FireClient(player, "Aukcja odpalona: " .. tier)
 		else
-			Remotes.event("Notify"):FireClient(player, "Nie znam takiego lockera. Uzyj: dusty, sealed, evidence, condemned")
+			Remotes.event("Notify"):FireClient(player, "Tiery: dusty, sealed, evidence, condemned")
 		end
 	elseif command == "/kasa" then
 		local profile = ProfileService.get(player)
-		local amount = tonumber(parts[2]) or 10000
+		local amount = math.floor(tonumber(parts[2]) or 10000)
 		if profile then
-			profile.Balance += math.floor(amount)
+			profile.Balance += amount
 			Remotes.event("BalanceChanged"):FireClient(player, profile.Balance)
-			Remotes.event("Notify"):FireClient(player, string.format("Dodane $%d", math.floor(amount)))
+			Remotes.event("Notify"):FireClient(player, string.format("Dodane $%d", amount))
+		end
+	elseif command == "/noc" then
+		if HeistService.forcePhase then
+			HeistService.forcePhase("Night")
+		end
+	elseif command == "/dzien" then
+		if HeistService.forcePhase then
+			HeistService.forcePhase("Day")
 		end
 	elseif command == "/pomoc" then
-		Remotes.event("Notify"):FireClient(player, "/aukcja [tier] | /kasa [kwota] | /pomoc")
+		Remotes.event("Notify"):FireClient(player, "/aukcja [tier] | /kasa [kwota] | /noc | /dzien")
 	end
 end
 
-local function hookCommands(player: Player)
-	if not game:GetService("RunService"):IsStudio() then
-		return
+local function onPlayerAdded(player: Player)
+	local profile = ProfileService.load(player)
+	Remotes.event("BalanceChanged"):FireClient(player, profile.Balance)
+	Remotes.event("PhaseChanged"):FireClient(player, HeistService.getPhase())
+
+	-- Kazdy gracz dostaje wlasne stanowisko na wspolnej mapie.
+	WorldService.assignStall(player)
+
+	if isAdmin(player) then
+		player.Chatted:Connect(function(message)
+			local ok, err = pcall(handleCommand, player, message)
+			if not ok then
+				warn("[CursedStorage] Blad komendy: " .. tostring(err))
+			end
+		end)
 	end
-	player.Chatted:Connect(function(message)
-		local ok, err = pcall(handleCommand, player, message)
-		if not ok then
-			warn("[CursedStorage] Blad komendy: " .. tostring(err))
-		end
-	end)
 end
 
-Players.PlayerAdded:Connect(hookCommands)
-for _, player in Players:GetPlayers() do
-	hookCommands(player)
-end
+Players.PlayerAdded:Connect(function(player)
+	local ok, err = pcall(onPlayerAdded, player)
+	if not ok then
+		warn("[CursedStorage] Blad dolaczania gracza: " .. tostring(err))
+	end
+end)
 
-Players.PlayerAdded:Connect(onPlayerAdded)
 for _, player in Players:GetPlayers() do
 	task.spawn(onPlayerAdded, player)
 end
@@ -100,4 +124,4 @@ game:BindToClose(function()
 	end
 end)
 
-print("[CursedStorage] Serwer uruchomiony. Komendy: /aukcja, /kasa, /pomoc")
+print("[CursedStorage] Serwer uruchomiony.")
