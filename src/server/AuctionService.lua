@@ -132,6 +132,30 @@ function AuctionService.getActiveLot()
 	return nil
 end
 
+-- Komenda testowa: odpala aukcje natychmiast, bez czekania na cykl.
+-- tierId moze byc nil (losowy tier) albo Id z Config.LockerTiers.
+function AuctionService.forceLot(tierId: string?): string?
+	local chosen: string? = nil
+
+	if tierId then
+		local wanted = string.lower(tierId)
+		for _, tier in Config.LockerTiers do
+			if string.lower(tier.Id) == wanted then
+				chosen = tier.Id
+				break
+			end
+		end
+		if not chosen then
+			return nil
+		end
+	else
+		chosen = Config.LockerTiers[math.random(1, #Config.LockerTiers)].Id
+	end
+
+	startLot(chosen :: string)
+	return chosen
+end
+
 function AuctionService.start(profileService)
 	ProfileService = profileService
 	Remotes.event("PlaceBid").OnServerEvent:Connect(onPlaceBid)

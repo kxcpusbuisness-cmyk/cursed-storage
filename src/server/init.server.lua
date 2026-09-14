@@ -43,6 +43,48 @@ ShopService.start(ProfileService)
 HeistService.start(ProfileService)
 WorldService.start(ProfileService, AuctionService, CleaningService)
 
+-- Komendy testowe na czacie. Dzialaja tylko w Studio, zeby nie wyciekly do gry.
+local function handleCommand(player: Player, message: string)
+	local parts = string.split(string.lower(message), " ")
+	local command = parts[1]
+
+	if command == "/aukcja" then
+		local tier = AuctionService.forceLot(parts[2])
+		if tier then
+			Remotes.event("Notify"):FireClient(player, "Aukcja odpalona: " .. tier)
+		else
+			Remotes.event("Notify"):FireClient(player, "Nie znam takiego lockera. Uzyj: dusty, sealed, evidence, condemned")
+		end
+	elseif command == "/kasa" then
+		local profile = ProfileService.get(player)
+		local amount = tonumber(parts[2]) or 10000
+		if profile then
+			profile.Balance += math.floor(amount)
+			Remotes.event("BalanceChanged"):FireClient(player, profile.Balance)
+			Remotes.event("Notify"):FireClient(player, string.format("Dodane $%d", math.floor(amount)))
+		end
+	elseif command == "/pomoc" then
+		Remotes.event("Notify"):FireClient(player, "/aukcja [tier] | /kasa [kwota] | /pomoc")
+	end
+end
+
+local function hookCommands(player: Player)
+	if not game:GetService("RunService"):IsStudio() then
+		return
+	end
+	player.Chatted:Connect(function(message)
+		local ok, err = pcall(handleCommand, player, message)
+		if not ok then
+			warn("[CursedStorage] Blad komendy: " .. tostring(err))
+		end
+	end)
+end
+
+Players.PlayerAdded:Connect(hookCommands)
+for _, player in Players:GetPlayers() do
+	hookCommands(player)
+end
+
 Players.PlayerAdded:Connect(onPlayerAdded)
 for _, player in Players:GetPlayers() do
 	task.spawn(onPlayerAdded, player)
@@ -58,4 +100,4 @@ game:BindToClose(function()
 	end
 end)
 
-print("[CursedStorage] Serwer uruchomiony. TEST SYNC 16:08 - jesli to widzisz, wtyczka dziala.")
+print("[CursedStorage] Serwer uruchomiony. Komendy: /aukcja, /kasa, /pomoc")
