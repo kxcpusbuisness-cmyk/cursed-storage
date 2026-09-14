@@ -309,10 +309,9 @@ function WorldService.setAuctionText(text: string)
 	end
 end
 
-local function refreshLoop()
-	while true do
-		task.wait(1)
-
+-- Jedno przejscie petli. Wydzielone, zeby mozna je bylo objac pcall.
+local function refreshTick()
+	do
 		local owner = Players:GetPlayers()[1]
 		local profile = owner and ProfileService.get(owner)
 		if profile then
@@ -340,9 +339,9 @@ local function refreshLoop()
 		if lot then
 			WorldService.setAuctionText(string.format(
 				"%s | %d przedmiotow | oferta $%d%s",
-				lot.TierId,
-				#lot.Items,
-				lot.HighestBid,
+				tostring(lot.TierId or "Locker"),
+				#(lot.Items or {}),
+				tonumber(lot.HighestBid) or 0,
 				if lot.HighestBidder then " | " .. lot.HighestBidder.Name else ""
 			))
 		else
@@ -350,6 +349,17 @@ local function refreshLoop()
 		end
 
 		WorldService.refreshShelves()
+	end
+end
+
+local function refreshLoop()
+	while true do
+		task.wait(1)
+		local ok, err = pcall(refreshTick)
+		if not ok then
+			warn("[CursedStorage] Blad odswiezania: " .. tostring(err))
+			task.wait(4)
+		end
 	end
 end
 
