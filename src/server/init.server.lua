@@ -15,6 +15,7 @@ local AuctionService = require(Server:WaitForChild("AuctionService"))
 local CleaningService = require(Server:WaitForChild("CleaningService"))
 local ShopService = require(Server:WaitForChild("ShopService"))
 local HeistService = require(Server:WaitForChild("HeistService"))
+local WorldService = require(Server:WaitForChild("WorldService"))
 
 local function onPlayerAdded(player: Player)
 	local profile = ProfileService.load(player)
@@ -40,6 +41,7 @@ AuctionService.start(ProfileService)
 CleaningService.start(ProfileService)
 ShopService.start(ProfileService)
 HeistService.start(ProfileService)
+WorldService.start(ProfileService, AuctionService, CleaningService)
 
 Players.PlayerAdded:Connect(onPlayerAdded)
 for _, player in Players:GetPlayers() do
