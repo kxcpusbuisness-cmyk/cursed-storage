@@ -1,12 +1,12 @@
 --!strict
--- HUD. Nic nie siedzi w gornym lewym/prawym rogu, bo tam Roblox trzyma
--- swoj pasek i liste graczy. Kasa i faza sa w lewym dolnym rogu.
+-- Kompaktowy HUD: male czcionki, mocniejsze kolory, sprint na Shift.
 
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -16,62 +16,53 @@ local Remotes = require(Shared:WaitForChild("Remotes"))
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local INK = Color3.fromRGB(16, 15, 22)
-local CREAM = Color3.fromRGB(255, 248, 238)
-local GOLD = Color3.fromRGB(255, 196, 84)
-local MINT = Color3.fromRGB(120, 235, 170)
-local VIOLET = Color3.fromRGB(190, 130, 255)
-local MUTED = Color3.fromRGB(168, 162, 184)
+local INK = Color3.fromRGB(19, 17, 28)
+local CREAM = Color3.fromRGB(247, 243, 252)
+local AMBER = Color3.fromRGB(255, 184, 72)
+local TEAL = Color3.fromRGB(86, 226, 214)
+local PINK = Color3.fromRGB(255, 118, 168)
+local LILAC = Color3.fromRGB(178, 142, 255)
+local MUTED = Color3.fromRGB(150, 144, 170)
 
 local screen = Instance.new("ScreenGui")
 screen.Name = "CursedStorageHUD"
 screen.ResetOnSpawn = false
--- false = Roblox sam odsuwa nasze GUI od swojego paska u gory.
 screen.IgnoreGuiInset = false
 screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screen.Parent = playerGui
 
--- Dodatkowy zapas pod pasek Robloxa (unibar jest wyzszy niz sam inset).
-local TOP_PAD = 12 + GuiService:GetGuiInset().Y * 0.25
+local TOP_PAD = 10 + GuiService:GetGuiInset().Y * 0.2
 
 local function corner(parent: Instance, radius: number)
 	local c = Instance.new("UICorner")
 	c.CornerRadius = UDim.new(0, radius)
 	c.Parent = parent
-	return c
 end
 
-local function stroke(parent: Instance, color: Color3, thickness: number)
+local function stroke(parent: Instance, color: Color3)
 	local s = Instance.new("UIStroke")
 	s.Color = color
-	s.Thickness = thickness
-	s.Transparency = 0.3
+	s.Thickness = 1.5
+	s.Transparency = 0.35
 	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	s.Parent = parent
-	return s
 end
 
-local function gradient(parent: Instance)
-	local g = Instance.new("UIGradient")
-	g.Color = ColorSequence.new(Color3.fromRGB(40, 36, 54), INK)
-	g.Rotation = 90
-	g.Parent = parent
-	return g
-end
-
-local function card(name: string, size: UDim2, position: UDim2, anchor: Vector2, accent: Color3, parent: Instance?): Frame
+local function card(name: string, size: UDim2, accent: Color3, parent: Instance): Frame
 	local frame = Instance.new("Frame")
 	frame.Name = name
 	frame.Size = size
-	frame.Position = position
-	frame.AnchorPoint = anchor
 	frame.BackgroundColor3 = INK
-	frame.BackgroundTransparency = 0.1
+	frame.BackgroundTransparency = 0.15
 	frame.BorderSizePixel = 0
-	frame.Parent = parent or screen
-	corner(frame, 14)
-	stroke(frame, accent, 2)
-	gradient(frame)
+	frame.Parent = parent
+	corner(frame, 10)
+	stroke(frame, accent)
+
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = ColorSequence.new(Color3.fromRGB(44, 38, 62), INK)
+	gradient.Rotation = 90
+	gradient.Parent = frame
 	return frame
 end
 
@@ -81,14 +72,15 @@ local function text(
 	size: UDim2,
 	position: UDim2,
 	textSize: number,
-	color: Color3
+	color: Color3,
+	bold: boolean?
 ): TextLabel
 	local label = Instance.new("TextLabel")
 	label.Name = name
 	label.Size = size
 	label.Position = position
 	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamBold
+	label.Font = if bold then Enum.Font.GothamBold else Enum.Font.GothamMedium
 	label.TextSize = textSize
 	label.TextColor3 = color
 	label.TextXAlignment = Enum.TextXAlignment.Left
@@ -97,127 +89,117 @@ local function text(
 	return label
 end
 
--- Lewa dolna kolumna: kasa, statystyki, faza, sterowanie -------------------
+-- Lewy dolny rog: kasa, statystyki, faza, sterowanie -----------------------
 
-local leftColumn = Instance.new("Frame")
-leftColumn.Name = "LeftColumn"
-leftColumn.AnchorPoint = Vector2.new(0, 1)
-leftColumn.Position = UDim2.new(0, 18, 1, -18)
-leftColumn.Size = UDim2.fromOffset(250, 280)
-leftColumn.BackgroundTransparency = 1
-leftColumn.Parent = screen
+local column = Instance.new("Frame")
+column.Name = "LeftColumn"
+column.AnchorPoint = Vector2.new(0, 1)
+column.Position = UDim2.new(0, 14, 1, -14)
+column.Size = UDim2.fromOffset(196, 240)
+column.BackgroundTransparency = 1
+column.Parent = screen
 
-local leftLayout = Instance.new("UIListLayout")
-leftLayout.FillDirection = Enum.FillDirection.Vertical
-leftLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-leftLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-leftLayout.Padding = UDim.new(0, 8)
-leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
-leftLayout.Parent = leftColumn
+local layout = Instance.new("UIListLayout")
+layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+layout.Padding = UDim.new(0, 6)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = column
 
-local cashCard = card("Cash", UDim2.fromOffset(250, 74), UDim2.new(), Vector2.new(), GOLD, leftColumn)
+local cashCard = card("Cash", UDim2.fromOffset(196, 48), AMBER, column)
 cashCard.LayoutOrder = 1
-
-local cashIcon = text(cashCard, "Icon", UDim2.fromOffset(46, 46), UDim2.fromOffset(12, 14), 28, GOLD)
-cashIcon.Text = "$"
-cashIcon.TextXAlignment = Enum.TextXAlignment.Center
-
-local cashCaption = text(cashCard, "Caption", UDim2.fromOffset(170, 16), UDim2.fromOffset(62, 14), 12, MUTED)
+local cashCaption = text(cashCard, "Caption", UDim2.fromOffset(120, 12), UDim2.fromOffset(12, 8), 10, MUTED)
 cashCaption.Text = "GOTOWKA"
+local cashValue = text(cashCard, "Value", UDim2.fromOffset(170, 22), UDim2.fromOffset(12, 20), 18, AMBER, true)
+cashValue.Text = "$0"
 
-local cashValue = text(cashCard, "Value", UDim2.fromOffset(170, 34), UDim2.fromOffset(62, 30), 26, CREAM)
-cashValue.Text = "0"
-
-local statsCard = card("Stats", UDim2.fromOffset(250, 44), UDim2.new(), Vector2.new(), MINT, leftColumn)
+local statsCard = card("Stats", UDim2.fromOffset(196, 34), TEAL, column)
 statsCard.LayoutOrder = 2
-local statsLabel = text(statsCard, "Label", UDim2.new(1, -24, 1, 0), UDim2.fromOffset(14, 0), 13, MINT)
-statsLabel.Text = "Ekwipunek 0  |  Brudne 0  |  Polki 0/6"
+local statsLabel = text(statsCard, "Label", UDim2.new(1, -20, 1, 0), UDim2.fromOffset(12, 0), 11, TEAL)
+statsLabel.Text = "Plecak 0 | Brudne 0 | Polki 0/6"
 
-local phaseCard = card("Phase", UDim2.fromOffset(250, 44), UDim2.new(), Vector2.new(), GOLD, leftColumn)
+local phaseCard = card("Phase", UDim2.fromOffset(196, 32), AMBER, column)
 phaseCard.LayoutOrder = 3
-
 local phaseDot = Instance.new("Frame")
-phaseDot.Name = "Dot"
-phaseDot.Size = UDim2.fromOffset(12, 12)
-phaseDot.Position = UDim2.fromOffset(14, 16)
-phaseDot.BackgroundColor3 = GOLD
+phaseDot.Size = UDim2.fromOffset(8, 8)
+phaseDot.Position = UDim2.fromOffset(12, 12)
+phaseDot.BackgroundColor3 = AMBER
 phaseDot.BorderSizePixel = 0
 phaseDot.Parent = phaseCard
-corner(phaseDot, 6)
-
-local phaseLabel = text(phaseCard, "Label", UDim2.fromOffset(200, 44), UDim2.fromOffset(36, 0), 15, GOLD)
+corner(phaseDot, 4)
+local phaseLabel = text(phaseCard, "Label", UDim2.fromOffset(160, 32), UDim2.fromOffset(26, 0), 11, AMBER)
 phaseLabel.Text = "DZIEN - aukcje i handel"
 
-local controls = card("Controls", UDim2.fromOffset(250, 92), UDim2.new(), Vector2.new(), VIOLET, leftColumn)
+local controls = card("Controls", UDim2.fromOffset(196, 86), LILAC, column)
 controls.LayoutOrder = 4
-controls.BackgroundTransparency = 0.25
-
-local controlsTitle = text(controls, "Title", UDim2.fromOffset(220, 18), UDim2.fromOffset(14, 8), 12, VIOLET)
+controls.BackgroundTransparency = 0.3
+local controlsTitle = text(controls, "Title", UDim2.fromOffset(170, 12), UDim2.fromOffset(12, 7), 10, LILAC)
 controlsTitle.Text = "STEROWANIE"
-
-local controlsBody = text(controls, "Body", UDim2.fromOffset(224, 58), UDim2.fromOffset(14, 28), 13, Color3.fromRGB(198, 192, 212))
-controlsBody.Text = "E  licytuj / czysc / sprzedaj\nF  wystaw na polke\nR  zajmij wlasny lombard"
+local controlsBody = text(controls, "Body", UDim2.fromOffset(176, 62), UDim2.fromOffset(12, 22), 10, Color3.fromRGB(198, 192, 216))
+controlsBody.Text = "E  licytuj / czysc / sprzedaj / lap zlodzieja\nF  wystaw na polke\nR  zajmij lombard\nShift  sprint"
 controlsBody.TextYAlignment = Enum.TextYAlignment.Top
 
--- Panel aukcji (gora, na srodku) -------------------------------------------
+-- Cel gry (prawy dol, nad toastami) ---------------------------------------
 
-local auctionCard = card(
-	"Auction",
-	UDim2.fromOffset(440, 128),
-	UDim2.new(0.5, 0, 0, TOP_PAD),
-	Vector2.new(0.5, 0),
-	GOLD
-)
+local questCard = card("Quest", UDim2.fromOffset(230, 54), PINK, screen)
+questCard.AnchorPoint = Vector2.new(1, 1)
+questCard.Position = UDim2.new(1, -14, 1, -14)
+local questTitle = text(questCard, "Title", UDim2.fromOffset(200, 12), UDim2.fromOffset(12, 7), 10, PINK)
+questTitle.Text = "CEL"
+local questBody = text(questCard, "Body", UDim2.new(1, -20, 0, 30), UDim2.fromOffset(12, 20), 11, CREAM)
+questBody.Text = "Wygraj locker na aukcji"
+questBody.TextWrapped = true
 
-local auctionTier = text(auctionCard, "Tier", UDim2.fromOffset(270, 26), UDim2.fromOffset(18, 14), 20, GOLD)
+-- Panel aukcji (gora, srodek) ---------------------------------------------
+
+local auctionCard = card("Auction", UDim2.fromOffset(330, 88), AMBER, screen)
+auctionCard.AnchorPoint = Vector2.new(0.5, 0)
+auctionCard.Position = UDim2.new(0.5, 0, 0, TOP_PAD)
+
+local auctionTier = text(auctionCard, "Tier", UDim2.fromOffset(200, 16), UDim2.fromOffset(12, 9), 13, AMBER, true)
 auctionTier.Text = "BRAK AUKCJI"
-
-local auctionMeta = text(auctionCard, "Meta", UDim2.fromOffset(270, 20), UDim2.fromOffset(18, 42), 14, MUTED)
+local auctionMeta = text(auctionCard, "Meta", UDim2.fromOffset(210, 14), UDim2.fromOffset(12, 28), 10, MUTED)
 auctionMeta.Text = "Nastepny locker startuje automatycznie"
-
-local auctionBid = text(auctionCard, "Bid", UDim2.fromOffset(160, 34), UDim2.new(1, -178, 0, 12), 26, CREAM)
+local auctionBid = text(auctionCard, "Bid", UDim2.fromOffset(110, 20), UDim2.new(1, -122, 0, 8), 16, CREAM, true)
 auctionBid.TextXAlignment = Enum.TextXAlignment.Right
 auctionBid.Text = "-"
-
-local auctionLeader = text(auctionCard, "Leader", UDim2.fromOffset(160, 18), UDim2.new(1, -178, 0, 46), 13, MINT)
+local auctionLeader = text(auctionCard, "Leader", UDim2.fromOffset(110, 12), UDim2.new(1, -122, 0, 30), 10, TEAL)
 auctionLeader.TextXAlignment = Enum.TextXAlignment.Right
-auctionLeader.Text = ""
 
 local barBack = Instance.new("Frame")
 barBack.Name = "TimerBack"
-barBack.Size = UDim2.new(1, -36, 0, 8)
-barBack.Position = UDim2.fromOffset(18, 76)
-barBack.BackgroundColor3 = Color3.fromRGB(48, 44, 60)
+barBack.Size = UDim2.new(1, -24, 0, 5)
+barBack.Position = UDim2.fromOffset(12, 52)
+barBack.BackgroundColor3 = Color3.fromRGB(52, 46, 68)
 barBack.BorderSizePixel = 0
 barBack.Parent = auctionCard
-corner(barBack, 4)
+corner(barBack, 3)
 
 local barFill = Instance.new("Frame")
 barFill.Name = "TimerFill"
 barFill.Size = UDim2.fromScale(0, 1)
-barFill.BackgroundColor3 = GOLD
+barFill.BackgroundColor3 = AMBER
 barFill.BorderSizePixel = 0
 barFill.Parent = barBack
-corner(barFill, 4)
+corner(barFill, 3)
 
-local hint = text(auctionCard, "Hint", UDim2.new(1, -36, 0, 20), UDim2.fromOffset(18, 94), 13, MUTED)
+local hint = text(auctionCard, "Hint", UDim2.new(1, -24, 0, 14), UDim2.fromOffset(12, 64), 10, MUTED)
 hint.Text = string.format("E przy lockerze podbija o $%d", Config.Auction.MinBidStep)
 
--- Toasty (prawy dol, zeby nie zaslanialy listy graczy) ---------------------
+-- Toasty (prawy dol, nad kartami) -----------------------------------------
 
 local toastHolder = Instance.new("Frame")
 toastHolder.Name = "Toasts"
-toastHolder.Size = UDim2.fromOffset(340, 320)
-toastHolder.Position = UDim2.new(1, -18, 1, -18)
+toastHolder.Size = UDim2.fromOffset(246, 260)
 toastHolder.AnchorPoint = Vector2.new(1, 1)
+toastHolder.Position = UDim2.new(1, -14, 1, -76)
 toastHolder.BackgroundTransparency = 1
 toastHolder.Parent = screen
 
 local toastLayout = Instance.new("UIListLayout")
-toastLayout.FillDirection = Enum.FillDirection.Vertical
 toastLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 toastLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-toastLayout.Padding = UDim.new(0, 8)
+toastLayout.Padding = UDim.new(0, 5)
 toastLayout.SortOrder = Enum.SortOrder.LayoutOrder
 toastLayout.Parent = toastHolder
 
@@ -228,43 +210,70 @@ local function toast(message: string, accent: Color3)
 
 	local frame = Instance.new("Frame")
 	frame.Name = "Toast"
-	frame.Size = UDim2.fromOffset(330, 46)
+	frame.Size = UDim2.fromOffset(240, 32)
 	frame.BackgroundColor3 = INK
-	frame.BackgroundTransparency = 0.08
+	frame.BackgroundTransparency = 0.12
 	frame.BorderSizePixel = 0
 	frame.LayoutOrder = toastOrder
 	frame.Parent = toastHolder
-	corner(frame, 12)
-	stroke(frame, accent, 2)
+	corner(frame, 8)
+	stroke(frame, accent)
 
 	local bar = Instance.new("Frame")
-	bar.Size = UDim2.fromOffset(4, 30)
-	bar.Position = UDim2.fromOffset(10, 8)
+	bar.Size = UDim2.fromOffset(3, 20)
+	bar.Position = UDim2.fromOffset(8, 6)
 	bar.BackgroundColor3 = accent
 	bar.BorderSizePixel = 0
 	bar.Parent = frame
 	corner(bar, 2)
 
-	local label = text(frame, "Label", UDim2.new(1, -32, 1, 0), UDim2.fromOffset(24, 0), 14, CREAM)
+	local label = text(frame, "Label", UDim2.new(1, -24, 1, 0), UDim2.fromOffset(18, 0), 10, CREAM)
 	label.Text = message
 	label.TextWrapped = true
 
-	frame.Position = UDim2.fromOffset(40, 0)
-	TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-		Position = UDim2.fromOffset(0, 0),
-	}):Play()
-
-	task.delay(4.5, function()
+	task.delay(4, function()
 		if not frame.Parent then
 			return
 		end
-		TweenService:Create(label, TweenInfo.new(0.3), { TextTransparency = 1 }):Play()
-		local fade = TweenService:Create(frame, TweenInfo.new(0.3), { BackgroundTransparency = 1 })
+		TweenService:Create(label, TweenInfo.new(0.25), { TextTransparency = 1 }):Play()
+		local fade = TweenService:Create(frame, TweenInfo.new(0.25), { BackgroundTransparency = 1 })
 		fade:Play()
 		fade.Completed:Wait()
 		frame:Destroy()
 	end)
 end
+
+-- Sprint ------------------------------------------------------------------
+
+local BASE_SPEED = 16
+local SPRINT_SPEED = 26
+
+local function humanoid(): Humanoid?
+	local character = player.Character
+	return character and character:FindFirstChildOfClass("Humanoid")
+end
+
+local function setSpeed(speed: number)
+	local h = humanoid()
+	if h then
+		h.WalkSpeed = speed
+	end
+end
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then
+		return
+	end
+	if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
+		setSpeed(SPRINT_SPEED)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
+		setSpeed(BASE_SPEED)
+	end
+end)
 
 -- Stan --------------------------------------------------------------------
 
@@ -286,7 +295,7 @@ end
 setPanelIdle()
 
 local function setBalance(amount: number)
-	cashValue.Text = string.format("%d", amount)
+	cashValue.Text = string.format("$%d", amount)
 end
 
 local function refreshStats()
@@ -303,28 +312,38 @@ local function refreshStats()
 			dirty += 1
 		end
 	end
+
 	setBalance(profile.Balance)
 	statsLabel.Text = string.format(
-		"Ekwipunek %d  |  Brudne %d  |  Polki %d/6",
+		"Plecak %d | Brudne %d | Polki %d/6",
 		#profile.Inventory,
 		dirty,
 		#profile.Displayed
 	)
+
+	-- Prosty samouczek: podpowiada nastepny krok.
+	if #profile.Inventory == 0 and #profile.Displayed == 0 then
+		questBody.Text = "Wygraj locker na aukcji (E przy lockerze)"
+	elseif dirty > 0 then
+		questBody.Text = string.format("Wyczysc %d brudnych rzeczy w warsztacie", dirty)
+	elseif #profile.Displayed == 0 then
+		questBody.Text = "Wystaw towar na polke (F przy swojej ladzie)"
+	else
+		questBody.Text = "Pilnuj polki - NPC kupuja, zlodzieje kradna"
+	end
 end
 
-Remotes.event("BalanceChanged").OnClientEvent:Connect(function(amount: number)
-	setBalance(amount)
-end)
+Remotes.event("BalanceChanged").OnClientEvent:Connect(setBalance)
 
 Remotes.event("PhaseChanged").OnClientEvent:Connect(function(phase: string)
 	if phase == "Night" then
-		phaseLabel.Text = "NOC - napady otwarte"
-		phaseLabel.TextColor3 = Color3.fromRGB(255, 110, 110)
-		phaseDot.BackgroundColor3 = Color3.fromRGB(255, 110, 110)
+		phaseLabel.Text = "NOC - zlodzieje na placu"
+		phaseLabel.TextColor3 = PINK
+		phaseDot.BackgroundColor3 = PINK
 	else
 		phaseLabel.Text = "DZIEN - aukcje i handel"
-		phaseLabel.TextColor3 = GOLD
-		phaseDot.BackgroundColor3 = GOLD
+		phaseLabel.TextColor3 = AMBER
+		phaseDot.BackgroundColor3 = AMBER
 	end
 end)
 
@@ -334,16 +353,16 @@ Remotes.event("AuctionStarted").OnClientEvent:Connect(function(data)
 	endsAt = os.clock() + duration
 
 	auctionTier.Text = string.upper(tostring(data.TierId)) .. " LOCKER"
-	auctionTier.TextColor3 = GOLD
+	auctionTier.TextColor3 = AMBER
 	auctionBid.Text = string.format("$%d", data.StartingBid or 0)
 	auctionLeader.Text = if data.Leader then "prowadzi " .. data.Leader else "brak ofert"
-	auctionLeader.TextColor3 = if data.Leader then MINT else MUTED
-	toast(string.format("Nowy locker: %s (%d przedmiotow)", tostring(data.TierId), data.ItemCount or 0), GOLD)
+	auctionLeader.TextColor3 = if data.Leader then TEAL else MUTED
+	toast(string.format("Nowy locker: %s (%d szt.)", tostring(data.TierId), data.ItemCount or 0), AMBER)
 end)
 
 Remotes.event("AuctionEnded").OnClientEvent:Connect(function(data)
 	if data.Winner then
-		toast(string.format("%s wygral locker za $%d", data.Winner, data.Price), GOLD)
+		toast(string.format("%s wygral locker za $%d", data.Winner, data.Price), AMBER)
 	else
 		toast("Locker niesprzedany", MUTED)
 	end
@@ -358,12 +377,18 @@ Remotes.event("ItemRevealed").OnClientEvent:Connect(function(item)
 end)
 
 Remotes.event("ItemCleaned").OnClientEvent:Connect(function(item)
-	toast(string.format("Wyczyszczone: %s -> $%d", item.Name, item.Value), MINT)
+	toast(string.format("Wyczyszczone: %s -> $%d", item.Name, item.Value), TEAL)
 	refreshStats()
 end)
 
 Remotes.event("Notify").OnClientEvent:Connect(function(message: string)
-	toast(message, VIOLET)
+	local accent = LILAC
+	if string.find(message, "kupil") or string.find(message, "Nagroda") then
+		accent = TEAL
+	elseif string.find(message, "zlodziej") or string.find(message, "Ukradli") then
+		accent = PINK
+	end
+	toast(message, accent)
 	refreshStats()
 end)
 
@@ -374,7 +399,7 @@ RunService.RenderStepped:Connect(function()
 	local left = math.max(0, endsAt - os.clock())
 	local ratio = math.clamp(left / duration, 0, 1)
 	barFill.Size = UDim2.fromScale(ratio, 1)
-	barFill.BackgroundColor3 = if ratio < 0.25 then Color3.fromRGB(255, 110, 110) else GOLD
+	barFill.BackgroundColor3 = if ratio < 0.25 then PINK else AMBER
 	auctionMeta.Text = string.format("%.0f s do konca licytacji", left)
 end)
 

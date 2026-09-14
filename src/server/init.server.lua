@@ -17,6 +17,8 @@ local CleaningService = require(Server:WaitForChild("CleaningService"))
 local ShopService = require(Server:WaitForChild("ShopService"))
 local HeistService = require(Server:WaitForChild("HeistService"))
 local WorldService = require(Server:WaitForChild("WorldService"))
+local DecorService = require(Server:WaitForChild("DecorService"))
+local NpcService = require(Server:WaitForChild("NpcService"))
 
 ProfileService.start()
 AuctionService.start(ProfileService)
@@ -24,6 +26,8 @@ CleaningService.start(ProfileService)
 ShopService.start(ProfileService)
 HeistService.start(ProfileService)
 WorldService.start(ProfileService, AuctionService, CleaningService)
+DecorService.start()
+NpcService.start(ProfileService, HeistService)
 
 Remotes.func("GetProfile").OnServerInvoke = function(player: Player)
 	local profile = ProfileService.get(player)
@@ -72,16 +76,8 @@ local function handleCommand(player: Player, message: string)
 			Remotes.event("BalanceChanged"):FireClient(player, profile.Balance)
 			Remotes.event("Notify"):FireClient(player, string.format("Dodane $%d", amount))
 		end
-	elseif command == "/noc" then
-		if HeistService.forcePhase then
-			HeistService.forcePhase("Night")
-		end
-	elseif command == "/dzien" then
-		if HeistService.forcePhase then
-			HeistService.forcePhase("Day")
-		end
 	elseif command == "/pomoc" then
-		Remotes.event("Notify"):FireClient(player, "/aukcja [tier] | /kasa [kwota] | /noc | /dzien")
+		Remotes.event("Notify"):FireClient(player, "/aukcja [tier] | /kasa [kwota]")
 	end
 end
 
