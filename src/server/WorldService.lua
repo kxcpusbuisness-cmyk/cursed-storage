@@ -312,6 +312,7 @@ end
 -- Jedno przejscie petli. Wydzielone, zeby mozna je bylo objac pcall.
 local function refreshTick()
 	do
+
 		local owner = Players:GetPlayers()[1]
 		local profile = owner and ProfileService.get(owner)
 		if profile then
