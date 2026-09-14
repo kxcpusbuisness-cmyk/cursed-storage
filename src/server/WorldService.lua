@@ -31,8 +31,8 @@ local function part(props: { [string]: any }): Part
 	local p = Instance.new("Part")
 	p.Anchored = true
 	p.Material = Enum.Material.SmoothPlastic
-	p.TopSurface = Enum.NormalId.Smooth
-	p.BottomSurface = Enum.NormalId.Smooth
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
 	for key, value in props do
 		(p :: any)[key] = value
 	end
